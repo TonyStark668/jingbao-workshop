@@ -78,7 +78,7 @@ const MODE_NAME: Record<Exclude<CreationMode, 'auto'>, string> = {
 const MODEL_SUGGESTION: Partial<Record<Exclude<CreationMode, 'auto'>, ModelSuggestion>> = {
   ai: { providerKey: 'doubao', reason: 'AI视频模式下，豆包系列模型生成的分镜更易被 Seedance 等视频模型理解' },
   hybrid: { providerKey: 'doubao', reason: '混合创作模式下，豆包系列模型的 AI 画面提示词质量更佳' },
-  real: { providerKey: 'qwen', reason: '真人实拍模式下，千问系列模型的口播分镜质量更佳' },
+  real: { providerKey: 'qwen', modelId: 'qwen-turbo', reason: '真人实拍模式下，千问系列模型的口播分镜质量更佳' },
 };
 
 export function StoryboardTool() {

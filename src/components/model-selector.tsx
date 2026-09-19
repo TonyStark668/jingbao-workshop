@@ -42,6 +42,8 @@ export interface ModelSuggestion {
   providerKey: string;
   /** 展示给用户的建议原因 */
   reason: string;
+  /** 可选：推荐的具体模型 ID；不传或不在目录内则回退为该厂商目录第一个 */
+  modelId?: string;
 }
 
 const STORAGE_KEY = 'ai_video_tool_model';
@@ -121,11 +123,12 @@ export function ModelSelector({
     return `${p.label} ${m.tierLabel}`;
   }, [value, catalog]);
 
-  // 推荐厂商的默认模型（目录第一个，通常为极速/免费档，一键切换不额外增加次数成本）
+  // 推荐厂商的默认模型：指定 modelId 则优先匹配；否则取目录第一个（通常为极速/免费档，一键切换不额外增加次数成本）
   const suggestedModel = useMemo(() => {
     if (!suggestion || !catalog) return null;
     const p = catalog.providers.find((x) => x.key === suggestion.providerKey);
-    return p && p.models.length > 0 ? p.models[0] : null;
+    if (!p || p.models.length === 0) return null;
+    return p.models.find((m) => m.id === suggestion.modelId) || p.models[0];
   }, [suggestion, catalog]);
 
   // 当前未选推荐厂商、且用户未关闭该厂商的建议时展示提示条
