@@ -72,7 +72,7 @@ export function getDailyUsed(cardId: number): number {
       `SELECT detail FROM usage_logs
        WHERE card_id = ?
          AND success = 1
-         AND action IN ('storyboard', 'titles')
+         AND action IN ('storyboard', 'titles', 'polish', 'character_views')
          AND strftime('%Y-%m-%d', created_at, ?) = ?`,
     )
     .all(cardId, tzModifier(), dayKey) as Array<{ detail: string | null }>;
@@ -197,12 +197,12 @@ export function clearGeneratedHistory(cardId: number): number {
   return result.changes;
 }
 
-/** 写入生成历史（storyboard / titles） */
+/** 写入生成历史（storyboard / titles / polish / character_views） */
 export function saveGeneratedHistory(params: {
   id: string;
   cardId: number;
   cardCode: string;
-  type: 'storyboard' | 'titles';
+  type: 'storyboard' | 'titles' | 'polish' | 'character_views';
   inputText: string;
   outputJson: unknown;
 }): void {
@@ -230,7 +230,7 @@ export function listGeneratedHistory(cardId: number, limit = 100) {
     )
     .all(cardId, limit) as Array<{
     id: string;
-    type: 'storyboard' | 'titles';
+    type: 'storyboard' | 'titles' | 'polish' | 'character_views';
     input_text: string;
     output_json: string;
     created_at: string;

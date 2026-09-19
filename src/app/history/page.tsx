@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import ProtectedPage from '@/components/protected-page';
 import { useCardAuth } from '@/lib/card-auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,8 +21,18 @@ import {
   CheckCircle2,
   ChevronDown,
   Film,
+  PenLine,
+  PersonStanding,
 } from 'lucide-react';
-import type { HistoryItem, StoryboardResult, TitleResult } from '@/lib/types';
+import type {
+  HistoryItem,
+  StoryboardResult,
+  TitleResult,
+  PolishResult,
+  CharacterViewsResult,
+  PolishMode,
+} from '@/lib/types';
+import { setToolPrefill } from '@/lib/tool-prefill';
 import {
   VIDEO_GEN_MODELS,
   DEFAULT_VIDEO_MODEL_ID,
@@ -53,6 +64,16 @@ function isStoryboard(item: HistoryItem): item is StoryboardResult {
   return item.type === 'storyboard';
 }
 
+function isPolish(item: HistoryItem): item is PolishResult {
+  return item.type === 'polish';
+}
+
+function isCharviews(item: HistoryItem): item is CharacterViewsResult {
+  return item.type === 'character_views';
+}
+
+const POLISH_MODE_NAME: Record<PolishMode, string> = { polish: '润色', expand: '扩写', condense: '缩写' };
+
 /** 输入摘要（前 20 字），用于列表项与折叠态 */
 function inputSummary(text: string): string {
   const oneLine = text.replace(/\s+/g, ' ').trim();
@@ -61,6 +82,7 @@ function inputSummary(text: string): string {
 
 export default function HistoryPage() {
   const { session } = useCardAuth();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [selected, setSelected] = useState<HistoryItem | null>(null);
@@ -68,6 +90,7 @@ export default function HistoryPage() {
   const [copiedAll, setCopiedAll] = useState(false);
   const [copiedShot, setCopiedShot] = useState<number | null>(null);
   const [copiedTitle, setCopiedTitle] = useState<number | null>(null);
+  const [copiedChar, setCopiedChar] = useState<number | null>(null);
   const [clearing, setClearing] = useState(false);
   // AI视频生成段：目标视频模型（时长上限）选择 + 段复制反馈
   const [videoModelId, setVideoModelId] = useState(DEFAULT_VIDEO_MODEL_ID);
@@ -117,6 +140,7 @@ export default function HistoryPage() {
     setCopiedShot(null);
     setCopiedTitle(null);
     setCopiedSeg(null);
+    setCopiedChar(null);
   }, [selected?.id]);
 
   const handleDelete = async (id: string) => {
@@ -178,13 +202,28 @@ export default function HistoryPage() {
   const titlesToText = (item: TitleResult) =>
     item.titles.map((t, i) => `${i + 1}. ${t}`).join('\n');
 
+  const charviewsToText = (item: CharacterViewsResult) =>
+    item.characters.map((c, i) => `${i + 1}. ${c.name}\n${c.prompt}`).join('\n\n');
+
   const handleCopyAll = () => {
     if (!selected) return;
-    const text = isStoryboard(selected) ? storyboardToText(selected) : titlesToText(selected);
+    const text = isStoryboard(selected)
+      ? storyboardToText(selected)
+      : isPolish(selected)
+        ? selected.text
+        : isCharviews(selected)
+          ? charviewsToText(selected)
+          : titlesToText(selected);
     navigator.clipboard.writeText(text);
     setCopiedAll(true);
     setTimeout(() => setCopiedAll(false), 2000);
     toast.success('已复制全部内容');
+  };
+
+  // 复用：润色结果拿去生成分镜
+  const handlePolishToStoryboard = (item: PolishResult) => {
+    setToolPrefill('storyboard', item.text);
+    router.push('/studio?tool=storyboard');
   };
 
   const handleCopyShot = (item: StoryboardResult, idx: number) => {
@@ -274,7 +313,32 @@ export default function HistoryPage() {
                 <div className="space-y-2">
                   {items.map((item) => {
                     const isStory = isStoryboard(item);
+                    const isPol = isPolish(item);
+                    const isCv = isCharviews(item);
                     const active = selected?.id === item.id;
+                    const icon = isStory ? (
+                      <Clapperboard className="h-4 w-4" />
+                    ) : isPol ? (
+                      <PenLine className="h-4 w-4" />
+                    ) : isCv ? (
+                      <PersonStanding className="h-4 w-4" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    );
+                    const iconCls = isStory
+                      ? 'bg-blue-100 text-primary'
+                      : isPol
+                        ? 'bg-emerald-100 text-emerald-600'
+                        : isCv
+                          ? 'bg-amber-100 text-amber-600'
+                          : 'bg-fuchsia-100 text-fuchsia-600';
+                    const label = isStory
+                      ? `分镜脚本 · ${item.shots.length} 镜`
+                      : isPol
+                        ? `文案${POLISH_MODE_NAME[item.mode]} · ${item.text.length} 字`
+                        : isCv
+                          ? `角色三视图 · ${item.characters.length} 个角色`
+                          : `爆款标题 · ${item.titles.length} 组`;
                     return (
                       <div
                         key={item.id}
@@ -286,20 +350,12 @@ export default function HistoryPage() {
                         }`}
                       >
                         <div className="flex items-start gap-3">
-                          <div
-                            className={`shrink-0 h-9 w-9 rounded-lg flex items-center justify-center ${
-                              isStory
-                                ? 'bg-blue-100 text-primary'
-                                : 'bg-fuchsia-100 text-fuchsia-600'
-                            }`}
-                          >
-                            {isStory ? <Clapperboard className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                          <div className={`shrink-0 h-9 w-9 rounded-lg flex items-center justify-center ${iconCls}`}>
+                            {icon}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-sm font-medium">
-                                {isStory ? `分镜脚本 · ${item.shots.length} 镜` : `爆款标题 · ${item.titles.length} 组`}
-                              </span>
+                              <span className="text-sm font-medium">{label}</span>
                               <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${active ? 'rotate-90' : ''}`} />
                             </div>
                             <div className="mt-1.5 text-sm text-muted-foreground line-clamp-1">
@@ -328,6 +384,10 @@ export default function HistoryPage() {
                     <span className="flex items-center gap-2">
                       {isStoryboard(selected) ? (
                         <><Clapperboard className="h-5 w-5 text-primary" /> 分镜脚本 · {selected.shots.length} 镜</>
+                      ) : isPolish(selected) ? (
+                        <><PenLine className="h-5 w-5 text-emerald-500" /> 文案{POLISH_MODE_NAME[selected.mode]} · 约 {selected.text.length} 字</>
+                      ) : isCharviews(selected) ? (
+                        <><PersonStanding className="h-5 w-5 text-amber-500" /> 角色三视图 · {selected.characters.length} 个角色</>
                       ) : (
                         <><Sparkles className="h-5 w-5 text-fuchsia-500" /> 爆款标题 · {selected.titles.length} 组</>
                       )}
@@ -389,8 +449,24 @@ export default function HistoryPage() {
                       className="w-full flex items-center justify-between gap-2 p-4 text-left"
                     >
                       <span className="min-w-0">
-                        <span className={`font-semibold text-xs ${isStoryboard(selected) ? 'text-primary' : 'text-fuchsia-600'} mr-2`}>
-                          {isStoryboard(selected) ? '输入文案' : '视频主题'}
+                        <span
+                          className={`font-semibold text-xs mr-2 ${
+                            isStoryboard(selected)
+                              ? 'text-primary'
+                              : isPolish(selected)
+                                ? 'text-emerald-600'
+                                : isCharviews(selected)
+                                  ? 'text-amber-600'
+                                  : 'text-fuchsia-600'
+                          }`}
+                        >
+                          {isStoryboard(selected)
+                            ? '输入文案'
+                            : isPolish(selected)
+                              ? '原始故事'
+                              : isCharviews(selected)
+                                ? '故事文案'
+                                : '视频主题'}
                         </span>
                         {!inputExpanded && (
                           <span className="text-sm text-muted-foreground">{inputSummary(selected.inputText)}</span>
@@ -406,7 +482,65 @@ export default function HistoryPage() {
                   </div>
 
                   {/* 结果 */}
-                  {isStoryboard(selected) ? (
+                  {isPolish(selected) ? (
+                    <div className="space-y-3">
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/30 p-4">
+                        <p className="text-sm leading-loose whitespace-pre-wrap break-words">{selected.text}</p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-muted-foreground">接下来：</span>
+                        <Button
+                          size="sm"
+                          onClick={() => handlePolishToStoryboard(selected)}
+                          className="gap-1.5 h-9"
+                          title="用这段文案生成分镜脚本"
+                        >
+                          <Clapperboard className="h-4 w-4" />
+                          拿去生成分镜
+                        </Button>
+                      </div>
+                    </div>
+                  ) : isCharviews(selected) ? (
+                    <div className="space-y-3">
+                      {selected.characters.map((c, idx) => {
+                        const charCopied = copiedChar === idx;
+                        return (
+                          <div
+                            key={idx}
+                            className="group rounded-xl border border-border/60 bg-white p-4"
+                          >
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500 text-white text-xs font-bold">
+                                  {idx + 1}
+                                </span>
+                                <span className="text-sm font-semibold truncate">{c.name}</span>
+                                <Badge variant="outline" className="text-xs text-amber-700 border-amber-200 bg-amber-50/60 shrink">
+                                  三视图
+                                </Badge>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(c.prompt);
+                                  setCopiedChar(idx);
+                                  setTimeout(() => setCopiedChar(null), 1500);
+                                  toast.success(`已复制「${c.name}」的三视图提示词`);
+                                }}
+                                className="shrink-0 rounded-lg border border-border p-1.5 text-muted-foreground hover:text-amber-600 hover:border-amber-300 hover:bg-amber-50/60 transition-colors"
+                                title="复制这条提示词"
+                              >
+                                {charCopied ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                              </button>
+                            </div>
+                            <p className="text-sm leading-relaxed text-slate-700 break-words">{c.prompt}</p>
+                          </div>
+                        );
+                      })}
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        复制提示词到即梦 / Seedream 等图像模型生成角色设定图，作为参考图配合分镜生成段使用，人物一致性更稳。
+                      </p>
+                    </div>
+                  ) : isStoryboard(selected) ? (
                     <div className="space-y-2.5">
                       {videoSegments.length > 0 && (
                         <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-4 space-y-3">

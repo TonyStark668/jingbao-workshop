@@ -20,6 +20,8 @@ import {
   Loader2,
   Film,
   Rocket,
+  PenLine,
+  PersonStanding,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -71,10 +73,22 @@ export default function HomePage() {
       color: 'from-fuchsia-500 to-pink-500',
     },
     {
+      icon: PenLine,
+      title: '文案润色·扩写·缩写',
+      desc: '自己写的故事也能打磨：润色不改剧情、扩写不偏主线、缩写保留梗概，产出即可生成分镜。',
+      color: 'from-emerald-500 to-teal-500',
+    },
+    {
+      icon: PersonStanding,
+      title: '角色三视图提示词',
+      desc: '从故事自动识别核心角色，生成三视图设定图提示词，配合即梦/Seedream生图做角色参考，人物一致性更稳。',
+      color: 'from-amber-500 to-orange-500',
+    },
+    {
       icon: Shield,
       title: '卡密激活即用',
       desc: '无需注册登录、无需绑定手机，输入卡密直接使用，操作简单、隐私安全。',
-      color: 'from-emerald-500 to-teal-500',
+      color: 'from-slate-500 to-slate-600',
     },
   ];
 
@@ -178,7 +192,7 @@ export default function HomePage() {
       <section id="features" className="scroll-mt-20">
         <div className="text-center mb-10">
           <h2 className="text-2xl sm:text-3xl font-bold">核心功能，直击创作痛点</h2>
-          <p className="mt-3 text-muted-foreground">两大核心 AI 能力，覆盖脚本+标题全流程</p>
+          <p className="mt-3 text-muted-foreground">四大核心 AI 能力，覆盖文案、分镜、标题、角色设定全流程</p>
         </div>
         <div className="grid md:grid-cols-3 gap-5">
           {features.map((f) => {
@@ -218,6 +232,8 @@ export default function HomePage() {
               {[
                 '爆款标题一键生成 · 一次10条，多风格全覆盖',
                 '专业分镜脚本 · 文案粘进来直接能开拍',
+                '文案润色·扩写·缩写 · 自己写的故事也能打磨',
+                '角色三视图提示词 · 生图做角色参考，人物一致性更稳',
                 '五大AI模型随便换 · 不满意一秒重生成',
                 '高级要求定制 · 加一句话，AI就听你的',
                 '生成历史云端留存 · 随时回看一键复用',

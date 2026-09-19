@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCardAuth } from '@/lib/card-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { ModelSelector, type ModelSelection } from '@/components/model-selector';
 import { GeneratingProgress } from '@/components/generating-progress';
 import { FeedbackDialog, type FeedbackContext } from '@/components/feedback-dialog';
+import { consumeToolPrefill } from '@/lib/tool-prefill';
 
 const MOCK_TITLES = [
   '闺蜜以为我去了巴黎！其实就在这家藏在弄堂里的小店…',
@@ -72,6 +73,12 @@ export function TitlesTool() {
     setFeedbackContext({ tool: '爆款标题', model: model.model || model.provider, error: error.slice(0, 300) });
     setFeedbackOpen(true);
   };
+
+  // 跨工具联动：其他页面点"生成爆款标题"时回填主题/文案
+  useEffect(() => {
+    const prefill = consumeToolPrefill('titles');
+    if (prefill) setTopic(prefill.slice(0, 2000));
+  }, []);
 
   const handleGenerate = async (useMock = false) => {
     if (!topic.trim()) {

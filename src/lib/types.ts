@@ -62,7 +62,35 @@ export interface TitleResult {
   titles: string[];
 }
 
-export type HistoryItem = StoryboardResult | TitleResult;
+/** 文案润色三模式：polish 润色（不改剧情）/ expand 扩写（不偏主线）/ condense 缩写（保留四要素） */
+export type PolishMode = 'polish' | 'expand' | 'condense';
+
+export interface PolishResult {
+  id: string;
+  type: 'polish';
+  title: string;
+  createdAt: string;
+  inputText: string;
+  mode: PolishMode;
+  text: string;
+}
+
+/** 角色三视图提示词：单个角色（name + 可直接用于图像模型的完整提示词） */
+export interface CharacterView {
+  name: string;
+  prompt: string;
+}
+
+export interface CharacterViewsResult {
+  id: string;
+  type: 'character_views';
+  title: string;
+  createdAt: string;
+  inputText: string;
+  characters: CharacterView[];
+}
+
+export type HistoryItem = StoryboardResult | TitleResult | PolishResult | CharacterViewsResult;
 
 export type AIModelProvider =
   | 'qwen'         // 通义千问

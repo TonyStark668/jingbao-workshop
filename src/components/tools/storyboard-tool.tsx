@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useCardAuth } from '@/lib/card-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,11 +21,13 @@ import {
   RefreshCw,
   CheckCircle2,
   Film,
+  PersonStanding,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ModelSelector, type ModelSelection, type ModelSuggestion } from '@/components/model-selector';
 import { GeneratingProgress } from '@/components/generating-progress';
 import { FeedbackDialog, type FeedbackContext } from '@/components/feedback-dialog';
+import { setToolPrefill, consumeToolPrefill } from '@/lib/tool-prefill';
 import type { StoryboardShot, StoryboardResult, CreationMode } from '@/lib/types';
 import {
   VIDEO_GEN_MODELS,
@@ -80,6 +83,7 @@ const MODEL_SUGGESTION: Partial<Record<Exclude<CreationMode, 'auto'>, ModelSugge
 
 export function StoryboardTool() {
   const { session, refreshUsage, logout } = useCardAuth();
+  const router = useRouter();
   const [inputText, setInputText] = useState('');
   const [extra, setExtra] = useState('');
   const [extraOpen, setExtraOpen] = useState(false);
@@ -103,6 +107,12 @@ export function StoryboardTool() {
     setFeedbackContext({ tool: '分镜脚本', model: model.model || model.provider, error: error.slice(0, 300) });
     setFeedbackOpen(true);
   };
+
+  // 跨工具联动：其他页面点"拿去生成分镜"时回填输入框
+  useEffect(() => {
+    const prefill = consumeToolPrefill('storyboard');
+    if (prefill) setInputText(prefill);
+  }, []);
 
   // 自定义输入的合法值（3-15 整数）
   const customParsed = parseInt(customInput, 10);
@@ -246,6 +256,12 @@ export function StoryboardTool() {
     setCopiedSeg(seg.index);
     setTimeout(() => setCopiedSeg(null), 1500);
     toast.success(`已复制生成段 ${seg.index}（含镜头 ${seg.shots[0].shotNumber}-${seg.shots[seg.shots.length - 1].shotNumber}）`);
+  };
+
+  // 工作流联动：AI 视频结果 → 角色三视图（复用同一故事，人物锚点同源）
+  const handleToCharviews = () => {
+    setToolPrefill('charviews', inputText);
+    router.push('/studio?tool=charviews');
   };
 
   return (
@@ -482,6 +498,18 @@ export function StoryboardTool() {
             </div>
             {result && (
               <div className="flex items-center gap-2">
+                {resultMeta?.creationMode === 'ai' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleToCharviews}
+                    className="gap-1.5 h-9 border-amber-300 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+                    title="用当前故事生成角色三视图提示词，生图做角色参考图，人物一致性更稳"
+                  >
+                    <PersonStanding className="h-4 w-4" />
+                    角色三视图
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"

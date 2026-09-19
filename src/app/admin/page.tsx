@@ -765,6 +765,8 @@ const ACTION_LABELS: Record<string, string> = {
   verify: '卡密验证',
   storyboard: '生成分镜',
   titles: '生成标题',
+  polish: '文案润色',
+  character_views: '角色三视图',
   admin_generate_cards: '管理员发卡',
   admin_set_status: '卡密状态变更',
   admin_login: '管理员登录',
@@ -846,6 +848,8 @@ function LogsPanel({ fetcher }: { fetcher: AdminFetcher }) {
             <SelectItem value="verify">卡密验证</SelectItem>
             <SelectItem value="storyboard">生成分镜</SelectItem>
             <SelectItem value="titles">生成标题</SelectItem>
+            <SelectItem value="polish">文案润色</SelectItem>
+            <SelectItem value="character_views">角色三视图</SelectItem>
             <SelectItem value="admin_generate_cards">管理员发卡</SelectItem>
             <SelectItem value="admin_set_status">状态变更</SelectItem>
           </SelectContent>
