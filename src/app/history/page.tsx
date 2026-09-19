@@ -449,6 +449,17 @@ export default function HistoryPage() {
                                     <span className="font-medium text-violet-800">生成段 {seg.index}</span>
                                     <span className="text-muted-foreground mx-1.5">·</span>
                                     <span>{range}</span>
+                                    {seg.sceneIds.length > 0 && (
+                                      <>
+                                        <span className="text-muted-foreground mx-1.5">·</span>
+                                        <span
+                                          className="text-violet-600"
+                                          title={seg.sceneContinued ? '同一场景因时长上限拆分，段首镜头已包含必要前置状态' : '段边界与场景切换对齐，段内画面天然连续'}
+                                        >
+                                          场景 {seg.sceneIds.join('、')}{seg.sceneContinued ? ' · 续' : ''}
+                                        </span>
+                                      </>
+                                    )}
                                     <span className="text-muted-foreground mx-1.5">·</span>
                                     <span className={seg.totalSeconds === null ? 'text-amber-600' : undefined}>
                                       {seg.totalSeconds === null ? '时长未知，建议单独生成' : `预计 ${seg.totalSeconds} 秒`}
@@ -488,6 +499,11 @@ export default function HistoryPage() {
                               <Badge variant="secondary" className="bg-primary text-primary-foreground">
                                 镜头 {String(shot.shotNumber).padStart(2, '0')}
                               </Badge>
+                              {shot.sceneId !== undefined && (
+                                <Badge variant="outline" className="text-xs text-sky-700 border-sky-200 bg-sky-50/60 whitespace-normal shrink">
+                                  场景 {shot.sceneId}
+                                </Badge>
+                              )}
                               <Badge variant="outline" className="text-xs whitespace-normal shrink">时长 {shot.duration}</Badge>
                               <Badge variant="outline" className="text-xs text-fuchsia-700 border-fuchsia-200 bg-fuchsia-50/50 whitespace-normal shrink">
                                 {shot.cameraMove}

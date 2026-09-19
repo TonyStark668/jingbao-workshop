@@ -564,6 +564,17 @@ export function StoryboardTool() {
                               <span className="font-medium text-violet-800">生成段 {seg.index}</span>
                               <span className="text-muted-foreground mx-1.5">·</span>
                               <span>{range}</span>
+                              {seg.sceneIds.length > 0 && (
+                                <>
+                                  <span className="text-muted-foreground mx-1.5">·</span>
+                                  <span
+                                    className="text-violet-600"
+                                    title={seg.sceneContinued ? '同一场景因时长上限拆分，段首镜头已包含必要前置状态' : '段边界与场景切换对齐，段内画面天然连续'}
+                                  >
+                                    场景 {seg.sceneIds.join('、')}{seg.sceneContinued ? ' · 续' : ''}
+                                  </span>
+                                </>
+                              )}
                               <span className="text-muted-foreground mx-1.5">·</span>
                               <span className={seg.totalSeconds === null ? 'text-amber-600' : undefined}>
                                 {seg.totalSeconds === null ? '时长未知，建议单独生成' : `预计 ${seg.totalSeconds} 秒`}
@@ -588,7 +599,7 @@ export function StoryboardTool() {
                       })}
                     </div>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      每个生成段的总时长已控制在所选模型的单次生成上限内，点击「复制本段」后可直接粘贴到视频模型连续生成；分段按镜头时长自动计算，若某段跨场景效果不理想，可改为逐镜头复制。
+                      每个生成段的总时长已控制在所选模型的单次生成上限内，且优先在场景切换处分段（标「续」的段为同一场景因时长上限的延续，段首已含前置状态）；点击「复制本段」后可直接粘贴到视频模型连续生成，若某段效果不理想，可改为逐镜头复制。
                     </p>
                   </div>
                 )}
@@ -609,6 +620,11 @@ export function StoryboardTool() {
                         <Badge variant="secondary" className="bg-primary text-primary-foreground border-primary/20">
                           镜头 {String(shot.shotNumber).padStart(2, '0')}
                         </Badge>
+                        {shot.sceneId !== undefined && (
+                          <Badge variant="outline" className="text-sky-700 border-sky-200 bg-sky-50/60">
+                            场景 {shot.sceneId}
+                          </Badge>
+                        )}
                         {shot.shotType && (
                           <Badge
                             variant="outline"

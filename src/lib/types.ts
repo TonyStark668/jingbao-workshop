@@ -38,6 +38,8 @@ export interface StoryboardShot {
   cameraMove: string;
   /** 混合创作模式下标注镜头类型：real = 真人实拍，ai = AI生成画面/B-roll */
   shotType?: 'real' | 'ai';
+  /** AI视频模式：场景编号，同一连续场景的镜头共用同一编号，场景切换（换地点/换时间）时递增；旧数据无此字段 */
+  sceneId?: number;
 }
 
 export interface StoryboardResult {

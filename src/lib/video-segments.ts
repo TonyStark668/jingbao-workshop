@@ -1,5 +1,6 @@
-// AI视频生成段：按"镜头时长累加 ≤ 目标视频模型单次生成上限"自动连续分段。
-// 纯前端确定性计算——不调用 AI、不改 JSON 契约、不增加 Token；历史分镜数据只要 duration 可解析即可参与分段。
+// AI视频生成段：按"场景边界优先 + 镜头时长累加 ≤ 目标视频模型单次生成上限"自动连续分段。
+// 纯前端确定性计算——不调用 AI、不增加 Token；历史分镜数据只要 duration 可解析即可参与分段
+// （无 sceneId 的旧数据自动退化为纯时长贪心，行为与旧版一致）。
 import type { StoryboardShot } from '@/lib/types';
 
 /**
@@ -48,39 +49,78 @@ export interface VideoSegment {
   hasUnknown: boolean;
   /** 段总时长超过模型上限（仅出现在单镜头即超限的极端情况，提示拆分画面描述） */
   exceeds: boolean;
+  /** 段覆盖的场景编号（去重；空数组 = 旧数据无场景信息，不影响分段） */
+  sceneIds: number[];
+  /** 同一场景因时长上限被强制拆分时的延续段（段内场景已在前面的段出现过） */
+  sceneContinued: boolean;
+}
+
+/** 有效的场景编号（后端已清洗为从 1 开始的连续整数；此处兜底防御旧数据/脏数据） */
+function validSceneId(shot: StoryboardShot): number | null {
+  const n = shot.sceneId;
+  return typeof n === 'number' && Number.isInteger(n) && n >= 1 ? n : null;
 }
 
 /**
  * 自动连续分段：按镜头原始顺序累加 duration，装得下就并入当前段，
  * 装不下（当前段 + 下一镜头 > maxDuration）就开启新段。
+ * - 场景切换（相邻镜头 sceneId 变化）强制开新段：段边界优先落在场景边界，
+ *   保证每段交给视频模型生成时画面天然连续；同一场景超时长上限时才在场景内部切分（sceneContinued 标记）
  * - 时长未知的镜头独立成段（不与前后合并）
  * - 单镜头时长超过 maxDuration 时仍独立成段并标记 exceeds，由 UI 提示
+ * - 镜头无 sceneId（旧历史数据）时不触发场景切换，退化为纯时长贪心，行为与旧版一致
  */
 export function buildVideoSegments(shots: StoryboardShot[], maxDuration: number): VideoSegment[] {
   const segments: VideoSegment[] = [];
+  const seenScenes = new Set<number>();
   let current: StoryboardShot[] = [];
   let currentTotal = 0;
 
   const flush = () => {
     if (current.length === 0) return;
-    segments.push({ index: 0, shots: current, totalSeconds: currentTotal, hasUnknown: false, exceeds: false });
+    const sceneIds = [...new Set(current.map(validSceneId).filter((v): v is number => v !== null))];
+    const sceneContinued = sceneIds.length > 0 && sceneIds.some((id) => seenScenes.has(id));
+    segments.push({ index: 0, shots: current, totalSeconds: currentTotal, hasUnknown: false, exceeds: false, sceneIds, sceneContinued });
+    sceneIds.forEach((id) => seenScenes.add(id));
     current = [];
     currentTotal = 0;
   };
 
+  const pushSingle = (shot: StoryboardShot, scene: number | null) => {
+    segments.push({
+      index: 0,
+      shots: [shot],
+      totalSeconds: null,
+      hasUnknown: true,
+      exceeds: false,
+      sceneIds: scene !== null ? [scene] : [],
+      sceneContinued: scene !== null && seenScenes.has(scene),
+    });
+    if (scene !== null) seenScenes.add(scene);
+  };
+
+  let prevScene: number | null = null;
   for (const shot of shots) {
     const sec = parseDurationSeconds(shot.duration);
+    const scene = validSceneId(shot);
     if (sec === null) {
       // 时长未知：先结算当前段，再让该镜头独立成段
       flush();
-      segments.push({ index: 0, shots: [shot], totalSeconds: null, hasUnknown: true, exceeds: false });
+      pushSingle(shot, scene);
+      prevScene = scene ?? prevScene;
       continue;
+    }
+    // 场景切换：强制结算当前段，保证段边界落在场景边界
+    if (scene !== null && prevScene !== null && scene !== prevScene) {
+      flush();
     }
     if (current.length > 0 && currentTotal + sec > maxDuration) {
       flush();
     }
     current.push(shot);
     currentTotal += sec;
+    // 无 sceneId 的镜头视为延续当前场景，不改变场景状态
+    prevScene = scene ?? prevScene;
   }
   flush();
 

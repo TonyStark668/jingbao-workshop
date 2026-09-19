@@ -77,7 +77,7 @@ ${countRule}
 示例输出格式：
 [{"shotNumber":1,"sceneDescription":"中景：人物站在书架前面对镜头，右手举起一本书，眉头微皱，语气认真","dialogue":"如果你每天都很努力，却还是赚不到钱……","duration":"3秒","cameraMove":"固定机位，手机与胸同高"}]`,
 
-    // 🤖 AI视频（V3.1）：用户实测调优版——V3.0 基础上两处微调：①生成风险降低章节补回画面文字控制（防乱码）②跨镜头衔接章节补回关键道具锚点正向规则（首次出现明确存在状态与空间位置）；镜头数量规则保留共用插值（countRule）
+    // 🤖 AI视频（V3.2）：V3.1 基础上新增 sceneId 场景编号输出（配合前端"AI视频生成段"按场景边界切分，提升跨镜头连续性）：①输出规范增加 sceneId 字段（判据含地点/时间/环境状态）②跨镜头衔接章节说明场景切换时递增；镜头数量规则保留共用插值（countRule）
     ai: `你是专为 Seedance 2.0 系列 AI 视频模型优化的专业 AI 分镜师，面向没有角色资产、场景资产、道具资产的普通 AI 视频创作者。
 
 你的任务是将用户提供的故事文案转化为低歧义、高生成稳定性、跨镜头连续性强的分镜脚本，可直接用于 AI 视频生成。
@@ -97,6 +97,7 @@ ${countRule}
 每个分镜必须包含以下字段：
 
 - shotNumber：整数，镜头序号，从1开始递增
+- sceneId：整数，连续生成场景编号，从1开始递增；地点、时间或环境状态（天气、光线）基本连续的镜头共用同一编号，发生明显变化时递增；回到之前出现过的场景时复用该场景的编号；仅用于自动视频分段，不影响其他字段
 - sceneDescription：中文画面描述，必须完整，可单独复制给 AI 视频模型生成
 - dialogue：台词/旁白，无内容填空字符串；有说话人必须标注，例如"旁白：""男主："
 - duration：格式如"4秒"
@@ -165,7 +166,7 @@ ${countRule}
 
 关键道具首次出现时，应明确其存在状态和空间位置（如手持、背负、佩戴、放置于某处），避免后续镜头中突然出现、消失或改变形态。
 
-用户将多个镜头拆分成不同视频分段生成时，下一段第一个镜头必须包含必要前置状态，不能依赖上一段视频内容或模型记忆。
+用户将多个镜头拆分成不同视频分段生成时，分段边界会优先落在场景切换处（sceneId 变化的位置）；同一场景因时长过长被拆分到不同分段时，下一段第一个镜头必须包含必要前置状态，不能依赖上一段视频内容或模型记忆。
 
 ---
 
@@ -700,14 +701,27 @@ export async function POST(request: NextRequest) {
   }
 
   // 规范化镜头数据（序号重排 + 字段兜底；shotType 仅在合法值时保留）
-  const shots: StoryboardShot[] = parsed.slice(0, 15).map((s, i) => ({
-    shotNumber: typeof s.shotNumber === 'number' ? s.shotNumber : i + 1,
-    sceneDescription: String(s.sceneDescription || ''),
-    dialogue: String(s.dialogue || ''),
-    duration: String(s.duration || '3秒'),
-    cameraMove: String(s.cameraMove || '固定机位'),
-    ...(s.shotType === 'real' || s.shotType === 'ai' ? { shotType: s.shotType } : {}),
-  }));
+  // sceneId 清洗：容忍字符串数字，按首次出现顺序压缩为从 1 开始的连续编号（如 [1,1,3,3,7] → [1,1,2,2,3]），供前端按场景边界切分生成段
+  const sceneIdMap = new Map<number, number>();
+  let nextSceneId = 0;
+  const normalizeSceneId = (raw: unknown): number | undefined => {
+    const n = typeof raw === 'number' ? raw : typeof raw === 'string' && /^\d+$/.test(raw.trim()) ? parseInt(raw, 10) : NaN;
+    if (!Number.isInteger(n) || n < 1) return undefined;
+    if (!sceneIdMap.has(n)) sceneIdMap.set(n, ++nextSceneId);
+    return sceneIdMap.get(n);
+  };
+  const shots: StoryboardShot[] = parsed.slice(0, 15).map((s, i) => {
+    const sceneId = normalizeSceneId(s.sceneId);
+    return {
+      shotNumber: typeof s.shotNumber === 'number' ? s.shotNumber : i + 1,
+      sceneDescription: String(s.sceneDescription || ''),
+      dialogue: String(s.dialogue || ''),
+      duration: String(s.duration || '3秒'),
+      cameraMove: String(s.cameraMove || '固定机位'),
+      ...(s.shotType === 'real' || s.shotType === 'ai' ? { shotType: s.shotType } : {}),
+      ...(sceneId !== undefined ? { sceneId } : {}),
+    };
+  });
 
   const MODE_TITLE: Record<ConcreteMode, string> = {
     real: '真人实拍', ai: 'AI视频', hybrid: '混合创作',
