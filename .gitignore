@@ -184,3 +184,6 @@ public/cockpit.html
 DESIGN.md
 .coze
 .trae-html-share-packages/
+
+# TRAE 会话上传文件落盘目录（聊天中上传的截图/文档），绝不进仓库
+.uploads/
