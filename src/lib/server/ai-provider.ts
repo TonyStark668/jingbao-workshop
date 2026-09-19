@@ -112,7 +112,7 @@ export const MODEL_CATALOG: Record<ProviderKey, CatalogModel[]> = {
   zhipu: [
     { id: 'glm-5.3-flash', label: 'glm-5.3-flash · 多模态极速（默认）', tier: 'fast', note: '多模态识图，低成本草稿生成，适合批量试稿' },
     { id: 'glm-5.3-flashx', label: 'glm-5.3-flashx · 多模态高速', tier: 'standard', note: '多模态识图，高速输出，算力高峰可降级 Flash' },
-    { id: 'glm-5.1', label: 'glm-5.1 · 高质量纯文本', tier: 'plus', note: '纯文本，剧本深度润色（不支持图片）' },
+    { id: 'glm-5.1', label: 'glm-5.1(0-32k) · 高质量纯文本', tier: 'plus', note: '纯文本，剧本深度润色（不支持图片）' },
     { id: 'glm-5.3', label: 'glm-5.3 · 旗舰纯文本', tier: 'flagship', note: '纯文本旗舰，强推理，复杂剧情创作，1M 上下文' },
   ],
   deepseek: [
