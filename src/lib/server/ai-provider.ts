@@ -16,6 +16,7 @@ interface ProviderDef {
   envModelByTier?: Partial<Record<ModelTier, string>>; // 按档位分别覆盖模型的环境变量名（豆包特有：不同档位用不同 ep-ID）
   authPrefix?: string; // Authorization 头前缀，默认 "Bearer"；腾讯混元用 "token"
   timeoutMs?: number;  // 单独超时（毫秒），默认 30s
+  defaultEnabled?: boolean; // 后台未设置开关时的默认状态（缺省 = 启用）；硅基流动默认停用
 }
 
 // 6 家提供商默认接入参数（全部兼容 OpenAI /chat/completions 格式）
@@ -71,6 +72,7 @@ const PROVIDERS: Record<ProviderKey, ProviderDef> = {
     baseURL: 'https://api.siliconflow.cn/v1',
     model: 'Qwen/Qwen2.5-7B-Instruct',
     envKey: 'SILICONFLOW_API_KEY',
+    defaultEnabled: false, // 默认停用（后台开关可手动开启）
   },
 };
 
@@ -147,9 +149,11 @@ function getSystemConfig(key: string): string | null {
   }
 }
 
-/** 提供商是否启用（system_config 里 ai_enabled_xxx = '0' 表示手动停用；缺省 = 启用） */
+/** 提供商是否启用：ai_enabled_xxx 显式 '1'/'0' 优先；未设置时用提供商默认状态（缺省 = 启用） */
 function isProviderEnabled(key: ProviderKey): boolean {
-  return getSystemConfig(`ai_enabled_${key}`) !== '0';
+  const v = getSystemConfig(`ai_enabled_${key}`);
+  if (v === '1' || v === '0') return v === '1';
+  return PROVIDERS[key].defaultEnabled ?? true;
 }
 
 export interface ResolvedProvider {
