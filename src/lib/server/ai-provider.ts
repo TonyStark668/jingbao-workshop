@@ -41,6 +41,7 @@ const PROVIDERS: Record<ProviderKey, ProviderDef> = {
     // .env.example 一直让用户填 LLM_API_KEY，但此前代码从未读取，导致部署后 AI 全部报"服务繁忙"
     envBaseURL: 'LLM_BASE_URL',
     envModel: 'LLM_MODEL',
+    timeoutMs: 90_000, // v4-pro 等旗舰模型推理慢，放宽到 90 秒
   },
   hunyuan: {
     key: 'hunyuan', label: '腾讯混元',
@@ -48,6 +49,7 @@ const PROVIDERS: Record<ProviderKey, ProviderDef> = {
     model: 'hy3',
     envKey: 'HUNYUAN_API_KEY',
     // TokenHub 官方文档（2026-08-28 版）明确 OpenAI 兼容路径使用标准 "Authorization: Bearer xxx"
+    timeoutMs: 90_000, // hy4 等旗舰模型推理慢，放宽到 90 秒
   },
   doubao: {
     key: 'doubao', label: '字节豆包',
@@ -432,9 +434,11 @@ export async function callAI(options: CallAIOptions): Promise<CallAIResult> {
       }
       return { ok: false, content: '', provider: provider.label, error: `HTTP_${res.status}` };
     } catch (e) {
-      // 网络错误/超时 → 重试
-      if (attempt < maxRetries) continue;
-      const reason = e instanceof Error && e.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK_ERROR';
+      const isTimeout = e instanceof Error && e.name === 'AbortError';
+      // 超时不重试：模型推理慢不是临时故障，重试只会让用户白等；
+      // 仅网络错误/5xx 才重试
+      if (!isTimeout && attempt < maxRetries) continue;
+      const reason = isTimeout ? 'TIMEOUT' : 'NETWORK_ERROR';
       return { ok: false, content: '', provider: provider.label, error: reason };
     } finally {
       clearTimeout(timer);
@@ -442,6 +446,27 @@ export async function callAI(options: CallAIOptions): Promise<CallAIResult> {
   }
 
   return { ok: false, content: '', provider: provider.label, error: 'RETRIES_EXHAUSTED' };
+}
+
+/**
+ * 将 callAI 返回的内部 error 码映射为前端友好的 { code, message }。
+ * 各 AI 接口统一调用，避免四处写 if-else 且文案不一致。
+ */
+export function describeAIError(error: string | undefined): { code: string; message: string } {
+  switch (error) {
+    case 'AI_PROVIDER_NOT_CONFIGURED':
+      return { code: 'AI_NOT_CONFIGURED', message: 'AI 服务尚未配置 API Key，请联系管理员在后台或环境变量中配置' };
+    case 'TIMEOUT':
+      return { code: 'TIMEOUT', message: '请求超时，模型响应较慢，建议切换极速版或稍后重试' };
+    case 'HTTP_429':
+      return { code: 'RATE_LIMITED', message: '模型限流，请稍后重试' };
+    case 'NETWORK_ERROR':
+      return { code: 'NETWORK_ERROR', message: '网络连接失败，请检查网络后重试' };
+    case 'RETRIES_EXHAUSTED':
+      return { code: 'AI_BUSY', message: 'AI 服务暂不可用，请稍后重试' };
+    default:
+      return { code: 'AI_BUSY', message: 'AI服务繁忙，请稍后再试' };
+  }
 }
 
 /** 剥离 LLM 输出中的 <think>...</think> 思考块（含自闭合 <think/> 和 OpenClaw 风格） */

@@ -115,7 +115,7 @@ export function TitlesTool() {
             return;
           }
           // AI 失败降级：展示基础模板标题（本次不消耗次数）
-          if (data.code === 'AI_BUSY' && data.fallback?.titles) {
+          if (data.fallback?.titles) {
             setTitles(data.fallback.titles as string[]);
             setMeta({ id: 'fallback', topic: '基础模板标题（AI繁忙降级，本次不扣次数）' });
             toast.warning(data.error || 'AI服务繁忙，已展示基础模板（本次不消耗次数），请稍后重试');

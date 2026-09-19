@@ -7,7 +7,7 @@ import {
   getExhaustedTip,
   getDailyUsed,
 } from '@/lib/server/card-service';
-import { callAI, PROVIDER_KEYS, getModelCost } from '@/lib/server/ai-provider';
+import { callAI, PROVIDER_KEYS, getModelCost, describeAIError } from '@/lib/server/ai-provider';
 import type { ProviderKey } from '@/lib/server/ai-provider';
 import { checkGlobalGuard } from '@/lib/server/service-guard';
 
@@ -181,13 +181,12 @@ export async function POST(request: NextRequest) {
       fingerprint,
       detail: `AI_FAIL: ${ai.error} (${ai.provider})`,
     });
+    const { code, message } = describeAIError(ai.error);
     return NextResponse.json(
       {
         success: false,
-        code: 'AI_BUSY',
-        error: ai.error === 'AI_PROVIDER_NOT_CONFIGURED'
-          ? 'AI 服务尚未配置 API Key，请联系管理员在后台或环境变量中配置'
-          : 'AI服务繁忙，请稍后再试',
+        code,
+        error: message,
       },
       { status: 503 },
     );
