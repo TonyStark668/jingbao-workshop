@@ -110,10 +110,10 @@ export const MODEL_CATALOG: Record<ProviderKey, CatalogModel[]> = {
     { id: 'qwen-max', label: 'qwen-max · 旗舰价，最强能力', tier: 'flagship', note: '最强质量，速度稍慢' },
   ],
   zhipu: [
-    { id: 'glm-5.3-flash', label: 'glm-5.3-flash · 免费极速（默认）', tier: 'fast', note: '响应迅捷，支持多模态' },
-    { id: 'glm-5.1', label: 'glm-5.1 · 前旗舰，已降价', tier: 'plus', note: '综合能力对标 Claude Opus 4.6' },
-    { id: 'glm-5.2', label: 'glm-5.2 · 次旗舰', tier: 'plus', note: '长程任务稳定，均衡之选' },
-    { id: 'glm-5.3', label: 'glm-5.3 · 当前旗舰', tier: 'flagship', note: '最强质量，Coding 与 Agent 能力强' },
+    { id: 'glm-5.3-flash', label: 'glm-5.3-flash · 多模态极速（默认）', tier: 'fast', note: '多模态识图，低成本草稿生成，适合批量试稿' },
+    { id: 'glm-5.3-flashx', label: 'glm-5.3-flashx · 多模态高速', tier: 'standard', note: '多模态识图，高速输出，算力高峰可降级 Flash' },
+    { id: 'glm-5.1', label: 'glm-5.1 · 高质量纯文本', tier: 'plus', note: '纯文本，剧本深度润色（不支持图片）' },
+    { id: 'glm-5.3', label: 'glm-5.3 · 旗舰纯文本', tier: 'flagship', note: '纯文本旗舰，强推理，复杂剧情创作，1M 上下文' },
   ],
   deepseek: [
     { id: 'deepseek-flash', label: 'deepseek-flash · V4.1 极速（默认）', tier: 'fast', note: '速度快，1M 上下文' },
